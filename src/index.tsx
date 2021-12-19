@@ -78,10 +78,10 @@ function attachPropsToDomNode(root: Required<Fiber>, node: HTMLElement) {
   });
 }
 
-function createDom(fiber: Fiber): HTMLElement | undefined {
+function createDom(fiber: Fiber): HTMLElement | null {
   // our render function will just render plain strings as well as react elements
   const root = fiber;
-  if (!root) return;
+  if (!root) return null;
   // if (typeof root === "string") {
   //   domNode.appendChild(document.createTextNode(root));
   //   return;
@@ -109,7 +109,7 @@ function createDom(fiber: Fiber): HTMLElement | undefined {
   // if the ReactElement is a functional component we call it with the props to get the ReactElement it returns
   else if (root.type instanceof Function) {
     const element = root.type(root.props);
-
+    return null;
     // account for fragments. if type is undefined then element is a fragment and we render all it's children
     // as the children of the current parent [domNode]
 
@@ -121,7 +121,7 @@ function createDom(fiber: Fiber): HTMLElement | undefined {
     // otherwise we render the new element
     // render(element, domNode);
   } else {
-    return;
+    return null;
   }
 }
 
@@ -146,7 +146,7 @@ function workLoop(deadLine: IdleDeadline) {
 
 function commitRoot() {
   deletions?.forEach(commitWork);
-  commitWork(wipRoot?.child);
+  commitWork(wipRoot!.child);
   currentRoot = wipRoot;
   wipRoot = null;
 }
@@ -188,38 +188,76 @@ function updateDom(
     });
 }
 
-function commitWork(fiber: Fiber | undefined) {
+function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
+  if (fiber!.dom) {
+    domParent?.removeChild(fiber!.dom);
+  } else {
+    commitDeletion(fiber!.child, domParent);
+  }
+}
+
+function commitWork(fiber: Fiber | null) {
   if (!fiber) {
     return;
   }
-  const domParent = fiber.parent!.dom;
+  let domParentFiber = fiber.parent;
+  while (!domParentFiber?.dom) {
+    domParentFiber = domParentFiber?.parent!;
+  }
+
+  const domParent = domParentFiber.dom;
 
   if (fiber.effectTag === "PLACEMENT" && fiber.dom !== null) {
     domParent?.appendChild(fiber.dom!);
   } else if (fiber.effectTag === "UPDATE" && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate!.props!, fiber.props!);
   } else if (fiber.effectTag === "DELETION") {
-    domParent?.removeChild(fiber.dom!);
+    commitDeletion(fiber, domParent);
   }
 
-  domParent?.appendChild(fiber.dom!);
+  // domParent?.appendChild(fiber.dom!);
   commitWork(fiber.child);
   commitWork(fiber.sibling);
 }
 
-function performUnitOfWork(fiber: Fiber): Fiber | null {
+function updateFunctionComponent(fiber: Fiber) {
+  const children = [(fiber.type as ReactFunctionComponent)(fiber.props)].reduce(
+    (acc, child) =>
+      //@ts-ignore
+      Array.isArray(child) ? [...acc, ...child] : [...acc, child],
+    []
+  );
+  //@ts-ignore
+  reconcileChildren(fiber, children);
+}
+
+function updateNormalComponent(fiber: Fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  const elements = fiber.props!.children;
+  const elements = fiber.props!.children.reduce(
+    (acc, child) =>
+      //@ts-ignore
+      Array.isArray(child) ? [...acc, ...child] : [...acc, child],
+    []
+  );
 
+  //@ts-ignore
   reconcileChildren(fiber, elements);
+}
+
+function performUnitOfWork(fiber: Fiber): Fiber | null {
+  if (fiber.type instanceof Function) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateNormalComponent(fiber);
+  }
 
   if (fiber.child) {
     return fiber.child;
   }
 
-  let nextFiber: Fiber | undefined = fiber;
+  let nextFiber: Fiber | undefined | null = fiber;
   while (nextFiber) {
     if (nextFiber.sibling) {
       return nextFiber.sibling;
@@ -238,18 +276,21 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
 
   while (idx < elements!.length || oldFiber !== null) {
     const element = elements![idx] as ReactElement;
+
     let newFiber: Fiber | null = null;
 
     const sametype = oldFiber && element && element.type === oldFiber.type;
 
     if (sametype) {
       newFiber = {
-        type: oldFiber?.type,
+        type: oldFiber!.type,
         props: element.props,
-        dom: oldFiber?.dom,
+        dom: oldFiber!.dom,
         parent: fiber,
         alternate: oldFiber,
         effectTag: "UPDATE",
+        child: null,
+        sibling: null,
       };
     }
     if (element && !sametype) {
@@ -260,6 +301,8 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
         parent: fiber,
         alternate: null,
         effectTag: "PLACEMENT",
+        child: null,
+        sibling: null,
       };
     }
 
@@ -268,8 +311,8 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
       deletions!.push(oldFiber);
     }
 
-    if (!element) {
-      debugger;
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
     }
 
     if (idx === 0) {
@@ -291,6 +334,10 @@ function render(root: ReactElement, domNode: HTMLElement) {
     },
     type: root.type,
     alternate: currentRoot,
+    child: null,
+    effectTag: undefined,
+    parent: null,
+    sibling: null,
   };
   deletions = [];
   nextUnitOfWork = wipRoot;

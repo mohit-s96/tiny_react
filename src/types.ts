@@ -9,12 +9,12 @@ export type ReactElement = {
   props: ReactProps;
 };
 export type Fiber = {
-  type?: string | ReactFunctionComponent;
-  dom?: HTMLElement | null;
-  props?: ReactProps;
-  parent?: Fiber;
-  sibling?: Fiber;
-  child?: Fiber;
-  alternate?: Fiber | null;
+  type: string | ReactFunctionComponent;
+  dom: HTMLElement | null;
+  props: ReactProps;
+  parent: Fiber | null;
+  sibling: Fiber | null;
+  child: Fiber | null;
+  alternate: Fiber | null;
   effectTag?: "UPDATE" | "PLACEMENT" | "DELETION";
 };
