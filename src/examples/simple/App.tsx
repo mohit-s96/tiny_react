@@ -11,7 +11,7 @@ interface CustomProps extends Partial<ReactProps> {
 }
 export function App() {
   const App = (
-    <>
+    <div>
       Hello World{" "}
       <span title="hello" style={{ color: "red", background: "#000" }}>
         Lorem ipsum dolor sit amet consectetur
@@ -21,7 +21,7 @@ export function App() {
       {arr.map((x) => (
         <p>{x}</p>
       ))}
-    </>
+    </div>
   );
   return App;
 }
