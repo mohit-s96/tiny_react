@@ -9,7 +9,7 @@ export function attachPropsToDomNode(root: Required<Fiber>, node: HTMLElement) {
       Object.keys(root.props[key]).forEach((css) => {
         node.style[css as any] = root.props[key][css];
       });
-    } else if (key.startsWith("on")) {
+    } else if (isEvent(key)) {
       const event = key.slice(2).toLowerCase();
       node["addEventListener"](event, root.props[key]);
     }

@@ -9,14 +9,17 @@ function rerender(num: number) {
   counter(num);
 }
 
-const counter = (val: string | number) => {
-  const jsx = (
+const Counter = ({ val }: { val: string | number }) => {
+  return (
     <div>
       hello world <p>okokok</p>
       <button onClick={() => rerender(+val + 1)}>{val}</button>
     </div>
   );
-  React.render(jsx, app);
+};
+
+const counter = (val: string | number) => {
+  React.render(<Counter val={val} />, app);
 };
 rerender(0);
 // React.render(<App />, app);

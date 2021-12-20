@@ -12,7 +12,6 @@ let wipRoot: Fiber | null = null;
 let currentRoot: Fiber | null = null;
 let deletions: Array<Fiber> | null = null;
 
-// TODO : implement fiber data structure and the performunitofwork function
 function workLoop(deadLine: IdleDeadline) {
   let shouldYeild = false;
   while (nextUnitOfWork && !shouldYeild) {
@@ -51,7 +50,6 @@ function commitWork(fiber: Fiber | null) {
     commitDeletion(fiber, domParent);
   }
 
-  // domParent?.appendChild(fiber.dom!);
   commitWork(fiber.child);
   commitWork(fiber.sibling);
 }
@@ -165,9 +163,7 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
 function render(root: ReactElement, domNode: HTMLElement) {
   wipRoot = {
     dom: domNode,
-    props: {
-      children: [root],
-    },
+    props: root.props,
     type: root.type,
     alternate: currentRoot,
     child: null,
