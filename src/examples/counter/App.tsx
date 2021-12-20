@@ -1,4 +1,4 @@
-import { React } from "../../index";
+import React from "../../index";
 import { ReactProps } from "../../types";
 
 interface ButtonProps extends Partial<ReactProps> {
