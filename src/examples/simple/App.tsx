@@ -1,4 +1,4 @@
-import { ReactProps } from "../../types";
+import { ReactProps } from "../../core/types";
 import React from "../../index";
 
 const arr = ["component from list", "another list component"];

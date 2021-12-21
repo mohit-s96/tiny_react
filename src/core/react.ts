@@ -1,9 +1,13 @@
 import {
   Fiber,
+  ReactAPI,
   ReactChildren,
   ReactElement,
   ReactFunctionComponent,
-} from "../types";
+  StateSetter,
+  SetStateWithCallback,
+  FiberHooks,
+} from "./types";
 import { updateDom, commitDeletion, createDom } from "./dom";
 import { createElement } from "./utils";
 
@@ -54,7 +58,58 @@ function commitWork(fiber: Fiber | null) {
   commitWork(fiber.sibling);
 }
 
+let wipFiber: Fiber | null = null;
+let hookIdx: number | null = null;
+
+function useState<T>(initial: T): [T, StateSetter<T>] {
+  const oldHook =
+    wipFiber!.alternate &&
+    wipFiber!.alternate.hooks &&
+    wipFiber!.alternate.hooks[hookIdx!];
+  const hook: FiberHooks = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  };
+
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach((action) => {
+    if (action instanceof Function) {
+      hook.state = action(hook.state);
+    } else {
+      hook.state = action;
+    }
+  });
+
+  const setState = <T>(action: T | SetStateWithCallback<T>) => {
+    if (!currentRoot) {
+      console.error(
+        "WARNING:",
+        "setState was called during initial render. This might happen when you call your state setter function inside JSX instead of passing it as a callback"
+      );
+      return;
+    }
+    hook.queue.push(action);
+    wipRoot = {
+      dom: currentRoot.dom,
+      alternate: currentRoot,
+      props: currentRoot.props,
+      child: null,
+      parent: null,
+      sibling: null,
+      type: currentRoot.type,
+    };
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+  wipFiber?.hooks?.push(hook);
+  hookIdx!++;
+  return [hook.state, setState];
+}
+
 function updateFunctionComponent(fiber: Fiber) {
+  wipFiber = fiber;
+  hookIdx = 0;
+  wipFiber.hooks = [];
   const children = [(fiber.type as ReactFunctionComponent)(fiber.props)].reduce(
     (acc, child) =>
       //@ts-ignore
@@ -69,7 +124,7 @@ function updateNormalComponent(fiber: Fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
-  const elements = fiber.props!.children.reduce(
+  const children = fiber.props!.children.reduce(
     (acc, child) =>
       //@ts-ignore
       Array.isArray(child) ? [...acc, ...child] : [...acc, child],
@@ -77,7 +132,7 @@ function updateNormalComponent(fiber: Fiber) {
   );
 
   //@ts-ignore
-  reconcileChildren(fiber, elements);
+  reconcileChildren(fiber, children);
 }
 
 function performUnitOfWork(fiber: Fiber): Fiber | null {
@@ -177,4 +232,4 @@ function render(root: ReactElement, domNode: HTMLElement) {
 
 requestIdleCallback(workLoop);
 
-export const React = { createElement, render };
+export const React: ReactAPI = { createElement, render, useState };

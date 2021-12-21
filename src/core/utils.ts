@@ -3,7 +3,7 @@ import {
   ReactElement,
   ReactFunctionComponent,
   ReactProps,
-} from "../types";
+} from "./types";
 
 export const createElement = (
   type: string | ReactFunctionComponent,

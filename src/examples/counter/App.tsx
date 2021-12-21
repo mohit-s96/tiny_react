@@ -1,5 +1,5 @@
 import React from "../../index";
-import { ReactProps } from "../../types";
+import { ReactProps } from "../../core/types";
 
 interface ButtonProps extends Partial<ReactProps> {
   count: string;

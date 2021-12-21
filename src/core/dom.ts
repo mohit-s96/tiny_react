@@ -1,4 +1,4 @@
-import { Fiber, ReactProps } from "../types";
+import { Fiber, ReactProps } from "./types";
 import { isProperty, isGone, isNew, isEvent } from "./utils";
 
 export function attachPropsToDomNode(root: Required<Fiber>, node: HTMLElement) {
@@ -10,8 +10,20 @@ export function attachPropsToDomNode(root: Required<Fiber>, node: HTMLElement) {
         node.style[css as any] = root.props[key][css];
       });
     } else if (isEvent(key)) {
-      const event = key.slice(2).toLowerCase();
-      node["addEventListener"](event, root.props[key]);
+      let event = "";
+      if (key === "onChange") {
+        event = "input";
+        function controlledInput(e: InputEvent | Event) {
+          root.props[key](e);
+          if ((e.target! as any).value === "") {
+            (e.target! as any).value = "";
+          }
+        }
+        node["addEventListener"](event, controlledInput);
+      } else {
+        event = key.slice(2).toLowerCase();
+        node["addEventListener"](event, root.props[key]);
+      }
     }
     //@ts-ignore
     else node[key] = root.props[key];
