@@ -16,7 +16,8 @@ let nextUnitOfWork: Fiber | null = null;
 let wipRoot: Fiber | null = null;
 let currentRoot: Fiber | null = null;
 let deletions: Array<Fiber> | null = null;
-let appRoot: Fiber | null = null;
+
+// TODO: the order of sibling dom elemnets changes after unmounting and re-mounting siblng components. Fix needed
 
 function workLoop(deadLine: IdleDeadline) {
   let shouldYeild = false;
@@ -161,7 +162,6 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
       return;
     }
     hook.queue!.push(action);
-    appRoot = currentRoot;
     wipRoot = {
       dom: hook.ref!.dom,
       alternate: hook.ref!,
