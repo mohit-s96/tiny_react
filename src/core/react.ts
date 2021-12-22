@@ -15,6 +15,7 @@ let nextUnitOfWork: Fiber | null = null;
 let wipRoot: Fiber | null = null;
 let currentRoot: Fiber | null = null;
 let deletions: Array<Fiber> | null = null;
+let appRoot: Fiber | null = null;
 
 function workLoop(deadLine: IdleDeadline) {
   let shouldYeild = false;
@@ -27,11 +28,31 @@ function workLoop(deadLine: IdleDeadline) {
   }
   requestIdleCallback(workLoop);
 }
+export function getRootFIber() {
+  return currentRoot;
+}
+export function getFiberFromDomNode(
+  fiber: Fiber | null,
+  dom: HTMLElement
+): Fiber | null {
+  if (!fiber) return null;
+  if (fiber.dom === dom) {
+    return fiber;
+  }
+  return (
+    getFiberFromDomNode(fiber.child, dom) ||
+    getFiberFromDomNode(fiber.sibling, dom)
+  );
+}
 
 function commitRoot() {
   deletions?.forEach(commitWork);
   commitWork(wipRoot!.child);
-  currentRoot = wipRoot;
+  if (!appRoot) currentRoot = wipRoot;
+  else {
+    currentRoot = appRoot;
+    appRoot = null;
+  }
   wipRoot = null;
 }
 
@@ -61,6 +82,44 @@ function commitWork(fiber: Fiber | null) {
 let wipFiber: Fiber | null = null;
 let hookIdx: number | null = null;
 
+function useEffect(callback: Function, dependency?: Array<any>) {
+  if (!(callback instanceof Function)) {
+    throw new Error("first argument to useEffect wasn't a function");
+  }
+  if (!dependency) {
+    callback();
+    return;
+  }
+
+  const oldHook =
+    wipFiber!.alternate &&
+    wipFiber!.alternate.hooks &&
+    wipFiber!.alternate.hooks[hookIdx!];
+
+  const hook: FiberHooks = {
+    state: dependency,
+  };
+
+  let shouldCallCallback = false;
+
+  if (!oldHook) {
+    callback();
+  } else {
+    (oldHook?.state as Array<any>).forEach((x, i) => {
+      if (hook.state[i] !== x) {
+        shouldCallCallback = true;
+      }
+    });
+
+    if (shouldCallCallback) {
+      callback();
+    }
+  }
+
+  wipFiber?.hooks?.push(hook);
+  hookIdx!++;
+}
+
 function useState<T>(initial: T): [T, StateSetter<T>] {
   const oldHook =
     wipFiber!.alternate &&
@@ -69,10 +128,11 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
   const hook: FiberHooks = {
     state: oldHook ? oldHook.state : initial,
     queue: [],
+    ref: wipFiber,
   };
 
   const actions = oldHook ? oldHook.queue : [];
-  actions.forEach((action) => {
+  actions!.forEach((action) => {
     if (action instanceof Function) {
       hook.state = action(hook.state);
     } else {
@@ -88,15 +148,16 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
       );
       return;
     }
-    hook.queue.push(action);
+    hook.queue!.push(action);
+    appRoot = currentRoot;
     wipRoot = {
-      dom: currentRoot.dom,
-      alternate: currentRoot,
-      props: currentRoot.props,
+      dom: hook.ref!.dom,
+      alternate: hook.ref!,
+      props: hook.ref!.props,
       child: null,
-      parent: null,
+      parent: hook.ref!.parent,
       sibling: null,
-      type: currentRoot.type,
+      type: hook.ref!.type,
     };
     nextUnitOfWork = wipRoot;
     deletions = [];
@@ -232,4 +293,4 @@ function render(root: ReactElement, domNode: HTMLElement) {
 
 requestIdleCallback(workLoop);
 
-export const React: ReactAPI = { createElement, render, useState };
+export const React: ReactAPI = { createElement, render, useState, useEffect };

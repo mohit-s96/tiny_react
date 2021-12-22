@@ -1,3 +1,4 @@
+import { getFiberFromDomNode, getRootFIber } from "./react";
 import { Fiber, ReactProps } from "./types";
 import { isProperty, isGone, isNew, isEvent } from "./utils";
 
@@ -13,17 +14,10 @@ export function attachPropsToDomNode(root: Required<Fiber>, node: HTMLElement) {
       let event = "";
       if (key === "onChange") {
         event = "input";
-        function controlledInput(e: InputEvent | Event) {
-          root.props[key](e);
-          if ((e.target! as any).value === "") {
-            (e.target! as any).value = "";
-          }
-        }
-        node["addEventListener"](event, controlledInput);
       } else {
         event = key.slice(2).toLowerCase();
-        node["addEventListener"](event, root.props[key]);
       }
+      node["addEventListener"](event, root.props[key]);
     }
     //@ts-ignore
     else node[key] = root.props[key];
@@ -73,15 +67,27 @@ export function updateDom(
     .filter(isEvent)
     .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps)(key))
     .forEach((name) => {
-      const eventType = name.toLowerCase().substring(2);
-      dom.removeEventListener(eventType, prevProps[name]);
+      let event = "";
+      if (name === "onChange") {
+        event = "input";
+        dom.removeEventListener(event, prevProps[name]);
+        // console.log("removed");
+      } else {
+        event = name.toLowerCase().substring(2);
+        dom.removeEventListener(event, prevProps[name]);
+      }
     });
   Object.keys(nextProps)
     .filter(isEvent)
     .filter(isNew(prevProps, nextProps))
     .forEach((name) => {
-      const eventType = name.toLowerCase().substring(2);
-      dom.addEventListener(eventType, nextProps[name]);
+      let event = "";
+      if (name === "onChange") {
+        event = "input";
+      } else {
+        event = name.slice(2).toLowerCase();
+      }
+      dom.addEventListener(event, nextProps[name]);
     });
 }
 export function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
@@ -90,4 +96,23 @@ export function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
   } else {
     commitDeletion(fiber!.child, domParent);
   }
+}
+
+export function createEventWrapperFactory(key: string, cb: any) {
+  return (e: Event) => {
+    let event = "";
+    if (key === "onChange") {
+      event = "input";
+      const fiber = getFiberFromDomNode(getRootFIber(), e.target as any);
+      const synthevent = {
+        target: {
+          value: (e.target! as any).value,
+        },
+      };
+      (e.target! as any).value = fiber!.props.value;
+      cb(synthevent);
+    } else {
+      cb(e);
+    }
+  };
 }

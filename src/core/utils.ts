@@ -1,3 +1,4 @@
+import { createEventWrapperFactory } from "./dom";
 import {
   ReactChildren,
   ReactElement,
@@ -10,6 +11,14 @@ export const createElement = (
   props: ReactProps,
   ...children: ReactChildren
 ): ReactElement => {
+  if (props) {
+    Object.keys(props).forEach((prop) => {
+      if (prop.startsWith("on")) {
+        if (props[prop] instanceof Function)
+          props[prop] = createEventWrapperFactory(prop, props[prop]);
+      }
+    });
+  }
   props = {
     ...props,
     children: children.map((x) =>

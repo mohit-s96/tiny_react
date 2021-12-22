@@ -14,6 +14,11 @@ const Counter = () => {
 
   const [state, setState] = React.useState(0);
   const [val, setVal] = React.useState("");
+
+  React.useEffect(() => {
+    console.log("ello from counter 1");
+  }, [state, val]);
+
   return (
     <div>
       hello world <p>okokok</p>
@@ -23,7 +28,7 @@ const Counter = () => {
         type="text"
         value={val}
         onChange={(e) => {
-          // setVal(e.target.value);
+          setVal(e.target.value);
         }}
       />
     </div>
@@ -33,6 +38,9 @@ const Counter2 = () => {
   console.log("counter 2 called");
 
   const [state, setState] = React.useState(0);
+  React.useEffect(() => {
+    console.log("ola from counter 2");
+  }, []);
   return (
     <div>
       <button onClick={() => setState(state + 1)}>Counter 2 : {state}</button>
