@@ -91,8 +91,10 @@ export function updateDom(
     });
 }
 export function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
+  // debugger;
   if (fiber!.dom) {
     domParent?.removeChild(fiber!.dom);
+    fiber!.effectTag = undefined;
   } else {
     commitDeletion(fiber!.child, domParent);
   }

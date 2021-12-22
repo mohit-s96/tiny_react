@@ -21,9 +21,12 @@ export const createElement = (
   }
   props = {
     ...props,
-    children: children.map((x) =>
-      Array.isArray(x) || x.type ? x : createTextElement(x as any as string)
-    ),
+    children: children.map((x) => {
+      if (x === null) return createNullElement();
+      return Array.isArray(x) || x?.type
+        ? x
+        : createTextElement(x as any as string);
+    }),
   };
   return { type, props };
 };
@@ -34,6 +37,14 @@ export function createTextElement(text: string) {
     props: {
       children: [],
       nodeValue: text,
+    },
+  };
+}
+export function createNullElement() {
+  return {
+    type: "NULL",
+    props: {
+      children: [],
     },
   };
 }

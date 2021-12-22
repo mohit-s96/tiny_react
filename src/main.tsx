@@ -1,5 +1,6 @@
 import "./style.css";
 import React from "./index";
+import { StateSetter } from "./core/types";
 // import { App } from "./examples/counter/App";
 // import { App } from "./examples/simple/App";
 
@@ -10,13 +11,16 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 // }
 
 const Counter = () => {
-  console.log("counter 1 called");
+  // console.log("counter 1 called");
 
   const [state, setState] = React.useState(0);
   const [val, setVal] = React.useState("");
 
   React.useEffect(() => {
     console.log("ello from counter 1");
+    return () => {
+      console.log("unmounting...........bye");
+    };
   }, [state, val]);
 
   return (
@@ -34,25 +38,36 @@ const Counter = () => {
     </div>
   );
 };
-const Counter2 = () => {
-  console.log("counter 2 called");
+const Counter2 = ({
+  show,
+  set,
+}: {
+  show: boolean;
+  set: StateSetter<boolean>;
+}) => {
+  // console.log("counter 2 called");
 
-  const [state, setState] = React.useState(0);
+  // const [state, setState] = React.useState(0);
   React.useEffect(() => {
     console.log("ola from counter 2");
   }, []);
   return (
     <div>
-      <button onClick={() => setState(state + 1)}>Counter 2 : {state}</button>
+      <button onClick={() => set(!show)}>
+        counter 1 is : {show ? "visible" : "hidden"}
+      </button>
     </div>
   );
 };
-const App = () => (
-  <div>
-    <Counter />
-    <Counter2 />
-  </div>
-);
+const App = () => {
+  const [show, setShow] = React.useState(true);
+  return (
+    <div>
+      {show ? <Counter /> : null}
+      <Counter2 show={show} set={setShow} />
+    </div>
+  );
+};
 // const counter = (val: string | number) => {
 //   React.render(<Counter val={val} />, app);
 // };

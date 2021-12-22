@@ -12,17 +12,22 @@ export type FiberHooks = {
   state: any;
   queue?: Array<any | SetStateWithCallback<any>>;
   ref?: Fiber | null;
+  cleanup?: Function;
 };
 export type CreateElement = (
   type: string | ReactFunctionComponent,
   props: ReactProps,
   ...children: ReactChildren
 ) => ReactElement;
+export type EffectCallback = () => Function | void;
 export type Render = (root: ReactElement, domNode: HTMLElement) => void;
 export type SetStateWithCallback<T> = (state: T) => any;
 export type StateSetter<T> = (state: T | SetStateWithCallback<T>) => any;
 export type useState = <T>(initial: T) => [T, StateSetter<T>];
-export type useEffect = (callback: Function, dependency?: Array<any>) => any;
+export type useEffect = (
+  callback: EffectCallback,
+  dependency?: Array<any>
+) => any;
 export type ReactAPI = {
   createElement: CreateElement;
   render: Render;

@@ -7,6 +7,7 @@ import {
   StateSetter,
   SetStateWithCallback,
   FiberHooks,
+  EffectCallback,
 } from "./types";
 import { updateDom, commitDeletion, createDom } from "./dom";
 import { createElement } from "./utils";
@@ -48,12 +49,9 @@ export function getFiberFromDomNode(
 function commitRoot() {
   deletions?.forEach(commitWork);
   commitWork(wipRoot!.child);
-  if (!appRoot) currentRoot = wipRoot;
-  else {
-    currentRoot = appRoot;
-    appRoot = null;
-  }
+  currentRoot = wipRoot;
   wipRoot = null;
+  deletions = [];
 }
 
 function commitWork(fiber: Fiber | null) {
@@ -67,11 +65,19 @@ function commitWork(fiber: Fiber | null) {
 
   const domParent = domParentFiber.dom;
 
-  if (fiber.effectTag === "PLACEMENT" && fiber.dom !== null) {
+  if (
+    fiber.effectTag === "PLACEMENT" &&
+    fiber.dom !== null &&
+    fiber.type !== "NULL"
+  ) {
     domParent?.appendChild(fiber.dom!);
-  } else if (fiber.effectTag === "UPDATE" && fiber.dom) {
+  } else if (
+    fiber.effectTag === "UPDATE" &&
+    fiber.dom &&
+    fiber.type !== "NULL"
+  ) {
     updateDom(fiber.dom, fiber.alternate!.props!, fiber.props!);
-  } else if (fiber.effectTag === "DELETION") {
+  } else if (fiber.effectTag === "DELETION" && fiber.type !== "NULL") {
     commitDeletion(fiber, domParent);
   }
 
@@ -82,15 +88,10 @@ function commitWork(fiber: Fiber | null) {
 let wipFiber: Fiber | null = null;
 let hookIdx: number | null = null;
 
-function useEffect(callback: Function, dependency?: Array<any>) {
+function useEffect(callback: EffectCallback, dependency?: Array<any>) {
   if (!(callback instanceof Function)) {
     throw new Error("first argument to useEffect wasn't a function");
   }
-  if (!dependency) {
-    callback();
-    return;
-  }
-
   const oldHook =
     wipFiber!.alternate &&
     wipFiber!.alternate.hooks &&
@@ -99,11 +100,19 @@ function useEffect(callback: Function, dependency?: Array<any>) {
   const hook: FiberHooks = {
     state: dependency,
   };
+  if (!dependency) {
+    const cleanup = callback();
+    hook.cleanup = cleanup!;
+    wipFiber?.hooks?.push(hook);
+    hookIdx!++;
+    return;
+  }
 
   let shouldCallCallback = false;
 
+  let cleanup: Function | void;
   if (!oldHook) {
-    callback();
+    cleanup = callback();
   } else {
     (oldHook?.state as Array<any>).forEach((x, i) => {
       if (hook.state[i] !== x) {
@@ -112,10 +121,12 @@ function useEffect(callback: Function, dependency?: Array<any>) {
     });
 
     if (shouldCallCallback) {
-      callback();
+      cleanup = callback();
     }
   }
-
+  if (cleanup) {
+    hook.cleanup = cleanup;
+  }
   wipFiber?.hooks?.push(hook);
   hookIdx!++;
 }
@@ -141,6 +152,7 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
   });
 
   const setState = <T>(action: T | SetStateWithCallback<T>) => {
+    // debugger;
     if (!currentRoot) {
       console.error(
         "WARNING:",
@@ -182,7 +194,7 @@ function updateFunctionComponent(fiber: Fiber) {
 }
 
 function updateNormalComponent(fiber: Fiber) {
-  if (!fiber.dom) {
+  if (!fiber.dom && fiber.type !== "NULL") {
     fiber.dom = createDom(fiber);
   }
   const children = fiber.props!.children.reduce(
@@ -256,8 +268,22 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
       };
     }
 
+    if (element.type === "NULL") {
+      newFiber = {
+        type: element.type,
+        dom: null,
+        props: element.props,
+        parent: fiber,
+        alternate: null,
+        child: null,
+        sibling: null,
+      };
+    }
+
     if (oldFiber && !sametype) {
       oldFiber.effectTag = "DELETION";
+      runCleanups(oldFiber.hooks);
+      recursiveMarkForDeletion(oldFiber.child);
       deletions!.push(oldFiber);
     }
 
@@ -274,6 +300,25 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
     prevSibling = newFiber;
     idx++;
   }
+}
+
+function runCleanups(hooks?: FiberHooks[]) {
+  if (!hooks) return;
+  hooks.forEach((hook) => {
+    if (hook.cleanup instanceof Function) {
+      hook.cleanup();
+    }
+  });
+}
+
+function recursiveMarkForDeletion(fiber: Fiber | null) {
+  if (!fiber) return;
+
+  fiber.effectTag = "DELETION";
+  runCleanups(fiber.hooks);
+
+  recursiveMarkForDeletion(fiber.child);
+  recursiveMarkForDeletion(fiber.sibling);
 }
 
 function render(root: ReactElement, domNode: HTMLElement) {
