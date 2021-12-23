@@ -25,7 +25,8 @@ const Counter = () => {
 
   return (
     <div>
-      hello world <p>okokok</p>
+      hello world
+      {/* hello world <p>okokok</p>
       <button onClick={() => setState(state + 1)}>{state}</button>
       <p>button clicked {state} times</p>
       <input
@@ -34,10 +35,11 @@ const Counter = () => {
         onChange={(e) => {
           setVal(e.target.value);
         }}
-      />
+      /> */}
     </div>
   );
 };
+const Test = () => <p>lorem ipsum</p>;
 const Counter2 = ({
   show,
   set,
@@ -63,7 +65,10 @@ const App = () => {
   const [show, setShow] = React.useState(true);
   return (
     <div>
+      <Test />
       {show ? <Counter /> : null}
+      <div>div in the middle 3rd positon</div>
+      {show ? <Test /> : null}
       <Counter2 show={show} set={setShow} />
     </div>
   );

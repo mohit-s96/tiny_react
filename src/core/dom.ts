@@ -102,9 +102,7 @@ export function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
 
 export function createEventWrapperFactory(key: string, cb: any) {
   return (e: Event) => {
-    let event = "";
     if (key === "onChange") {
-      event = "input";
       const fiber = getFiberFromDomNode(getRootFIber(), e.target as any);
       const synthevent = {
         target: {

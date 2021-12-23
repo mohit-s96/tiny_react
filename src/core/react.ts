@@ -47,14 +47,27 @@ export function getFiberFromDomNode(
   );
 }
 
+let lastModifiedFiber: Array<temp> = [];
 function commitRoot() {
-  deletions?.forEach(commitWork);
+  deletions?.forEach((x) => commitWork(x));
   commitWork(wipRoot!.child);
+  lastModifiedFiber = [];
   currentRoot = wipRoot;
   wipRoot = null;
   deletions = [];
 }
 
+function insertAfter(
+  newNode: HTMLElement,
+  referenceNode: HTMLElement,
+  parentNode: HTMLElement
+) {
+  parentNode.insertBefore(newNode, referenceNode.nextSibling);
+}
+type temp = {
+  dom: HTMLElement;
+  fiber: Fiber;
+};
 function commitWork(fiber: Fiber | null) {
   if (!fiber) {
     return;
@@ -71,13 +84,39 @@ function commitWork(fiber: Fiber | null) {
     fiber.dom !== null &&
     fiber.type !== "NULL"
   ) {
-    domParent?.appendChild(fiber.dom!);
+    let firstchildfiber: Fiber | null = domParentFiber.child;
+
+    while (firstchildfiber?.dom === null) {
+      firstchildfiber = firstchildfiber.child;
+    }
+    if (firstchildfiber === fiber) {
+      if (domParent.firstChild) {
+        domParent.insertBefore(fiber.dom, domParent.firstChild);
+      } else {
+        domParent?.appendChild(fiber.dom);
+      }
+      lastModifiedFiber.push({ fiber, dom: domParent });
+    } else {
+      // domParent?.appendChild(fiber.dom);
+      const idx = lastModifiedFiber.findIndex((x) => x.dom === domParent);
+      if (idx > -1) {
+        const lastfiber = lastModifiedFiber[idx];
+        insertAfter(fiber.dom, lastfiber.fiber.dom!, domParent);
+        lastModifiedFiber[idx].fiber = fiber;
+      }
+    }
   } else if (
     fiber.effectTag === "UPDATE" &&
     fiber.dom &&
     fiber.type !== "NULL"
   ) {
     updateDom(fiber.dom, fiber.alternate!.props!, fiber.props!);
+    const idx = lastModifiedFiber.findIndex((x) => x.dom === domParent);
+    if (idx > -1) {
+      lastModifiedFiber[idx].fiber = fiber;
+    } else {
+      lastModifiedFiber.push({ fiber, dom: domParent });
+    }
   } else if (fiber.effectTag === "DELETION" && fiber.type !== "NULL") {
     commitDeletion(fiber, domParent);
   }
@@ -284,7 +323,9 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
       oldFiber.effectTag = "DELETION";
       runCleanups(oldFiber.hooks);
       recursiveMarkForDeletion(oldFiber.child);
-      deletions!.push(oldFiber);
+      if (oldFiber.type !== "NULL") {
+        deletions!.push(oldFiber);
+      }
     }
 
     if (oldFiber) {
