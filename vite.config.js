@@ -4,4 +4,8 @@ export default {
   plugins: [
     babel(),
   ],
+  root: 'examples',
+  build: {
+    outDir: 'examples/dist'
+  }
 };
