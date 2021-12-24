@@ -34,6 +34,10 @@ export type ReactAPI = {
   useState: useState;
   useEffect: useEffect;
 };
+export type LastCommitedNode = {
+  dom: HTMLElement;
+  fiber: Fiber;
+};
 export type Fiber = {
   type: string | ReactFunctionComponent;
   dom: HTMLElement | null;

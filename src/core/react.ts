@@ -8,6 +8,7 @@ import {
   SetStateWithCallback,
   FiberHooks,
   EffectCallback,
+  LastCommitedNode,
 } from "./types";
 import { updateDom, commitDeletion, createDom } from "./dom";
 import { createElement } from "./utils";
@@ -16,8 +17,25 @@ let nextUnitOfWork: Fiber | null = null;
 let wipRoot: Fiber | null = null;
 let currentRoot: Fiber | null = null;
 let deletions: Array<Fiber> | null = null;
+let syncRenderFlag = false;
+let lastModifiedFiber: Array<LastCommitedNode> = [];
+let wipFiber: Fiber | null = null;
+let hookIdx: number | null = null;
 
-// TODO: the order of sibling dom elemnets changes after unmounting and re-mounting siblng components. Fix needed
+export function setSyncRenderFlag(flag: boolean) {
+  syncRenderFlag = flag;
+}
+
+// only used when immediate updates are nneded like in controlled component
+function syncRender() {
+  while (nextUnitOfWork) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+  }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
+  setSyncRenderFlag(false);
+}
 
 function workLoop(deadLine: IdleDeadline) {
   let shouldYeild = false;
@@ -30,9 +48,11 @@ function workLoop(deadLine: IdleDeadline) {
   }
   requestIdleCallback(workLoop);
 }
+
 export function getRootFIber() {
   return currentRoot;
 }
+
 export function getFiberFromDomNode(
   fiber: Fiber | null,
   dom: HTMLElement
@@ -47,7 +67,6 @@ export function getFiberFromDomNode(
   );
 }
 
-let lastModifiedFiber: Array<temp> = [];
 function commitRoot() {
   deletions?.forEach((x) => commitWork(x));
   commitWork(wipRoot!.child);
@@ -64,10 +83,7 @@ function insertAfter(
 ) {
   parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
-type temp = {
-  dom: HTMLElement;
-  fiber: Fiber;
-};
+
 function commitWork(fiber: Fiber | null) {
   if (!fiber) {
     return;
@@ -122,11 +138,10 @@ function commitWork(fiber: Fiber | null) {
   }
 
   commitWork(fiber.child);
-  commitWork(fiber.sibling);
+  if (fiber.effectTag !== "DELETION") {
+    commitWork(fiber.sibling);
+  }
 }
-
-let wipFiber: Fiber | null = null;
-let hookIdx: number | null = null;
 
 function useEffect(callback: EffectCallback, dependency?: Array<any>) {
   if (!(callback instanceof Function)) {
@@ -200,7 +215,13 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
       );
       return;
     }
+
+    if (hook.ref?.effectTag === "DELETION") {
+      console.error("Warning: Setting state on onmounted component");
+    }
+
     hook.queue!.push(action);
+
     wipRoot = {
       dom: hook.ref!.dom,
       alternate: hook.ref!,
@@ -212,7 +233,11 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
     };
     nextUnitOfWork = wipRoot;
     deletions = [];
+    if (syncRenderFlag) {
+      syncRender();
+    }
   };
+
   wipFiber?.hooks?.push(hook);
   hookIdx!++;
   return [hook.state, setState];
@@ -363,6 +388,13 @@ function recursiveMarkForDeletion(fiber: Fiber | null) {
 }
 
 function render(root: ReactElement, domNode: HTMLElement) {
+  // wrap root here
+  root = {
+    type: "div",
+    props: {
+      children: [root],
+    },
+  };
   wipRoot = {
     dom: domNode,
     props: root.props,

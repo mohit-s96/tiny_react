@@ -1,4 +1,4 @@
-import { getFiberFromDomNode, getRootFIber } from "./react";
+import { getFiberFromDomNode, getRootFIber, setSyncRenderFlag } from "./react";
 import { Fiber, ReactProps } from "./types";
 import { isProperty, isGone, isNew, isEvent } from "./utils";
 
@@ -56,12 +56,19 @@ export function updateDom(
     });
 
   // Set new or changed properties
+
   Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
     .forEach((name) => {
-      //@ts-ignore
-      dom[name] = nextProps[name];
+      if (name === "style") {
+        Object.keys(nextProps[name]).forEach((css) => {
+          dom.style[css as any] = nextProps[name][css];
+        });
+      } else {
+        //@ts-ignore
+        dom[name] = nextProps[name];
+      }
     });
   Object.keys(prevProps)
     .filter(isEvent)
@@ -101,18 +108,24 @@ export function commitDeletion(fiber: Fiber | null, domParent: HTMLElement) {
 }
 
 export function createEventWrapperFactory(key: string, cb: any) {
-  return (e: Event) => {
-    if (key === "onChange") {
+  if (key === "onChange") {
+    return (e: Event) => {
+      e.preventDefault();
       const fiber = getFiberFromDomNode(getRootFIber(), e.target as any);
       const synthevent = {
         target: {
           value: (e.target! as any).value,
         },
+        preventDefault: e.preventDefault,
       };
+
       (e.target! as any).value = fiber!.props.value;
+      setSyncRenderFlag(true);
       cb(synthevent);
-    } else {
+    };
+  } else {
+    return (e: Event) => {
       cb(e);
-    }
-  };
+    };
+  }
 }
