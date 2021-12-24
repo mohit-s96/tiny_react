@@ -16,7 +16,7 @@ function readWriteSync() {
 
     let newValue = data.replace(/="\//gm, '="');
 
-    fs.writeFileSync("dist/index.html", newValue, "utf-8");
+    fs.writeFileSync("examples/dist/index.html", newValue, "utf-8");
 
     console.log("Updated index.html");
   } catch (e) {
