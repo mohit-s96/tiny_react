@@ -332,7 +332,7 @@ function reconcileChildren(fiber: Fiber, elements: ReactChildren) {
       };
     }
 
-    if (element.type === "NULL") {
+    if (element?.type === "NULL") {
       newFiber = {
         type: element.type,
         dom: null,

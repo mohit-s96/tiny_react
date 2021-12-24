@@ -19,23 +19,28 @@ const App = () => {
   }
 
   return (
-    <form onSubmit={validateFormAndSubmit}>
-      <label htmlFor="name">Username</label>
-      <input
-        type="text"
-        name="name"
-        onChange={(e) => setName(e.target.value)}
-        value={name}
-      />
-      <label htmlFor="pass">Password</label>
-      <input
-        type="password"
-        name="pass"
-        onChange={(e) => setPass(e.target.value)}
-        value={pass}
-      />
-      <button type="submit">Submit</button>
-    </form>
+    <div className="form">
+      <h1>Login</h1>
+      <form onSubmit={validateFormAndSubmit}>
+        <label htmlFor="name">Username</label>
+        <input
+          placeholder="username"
+          type="text"
+          name="name"
+          onChange={(e) => setName(e.target.value)}
+          value={name}
+        />
+        <label htmlFor="pass">Password</label>
+        <input
+          placeholder="password"
+          type="password"
+          name="pass"
+          onChange={(e) => setPass(e.target.value)}
+          value={pass}
+        />
+        <button type="submit">Submit</button>
+      </form>
+    </div>
   );
 };
 

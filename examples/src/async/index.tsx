@@ -33,7 +33,9 @@ const App = () => {
     <div>
       <h1>reddit home page</h1>
       {status === 0 ? (
-        <p>Loading</p>
+        <p className="loading">
+          <span>loading...</span>
+        </p>
       ) : status === 1 ? (
         data.map((x) => (
           <p>
