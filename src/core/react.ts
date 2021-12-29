@@ -218,6 +218,7 @@ function useState<T>(initial: T): [T, StateSetter<T>] {
 
     if (hook.ref?.effectTag === "DELETION") {
       console.error("Warning: Setting state on onmounted component");
+      return;
     }
 
     hook.queue!.push(action);
